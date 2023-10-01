@@ -11,10 +11,10 @@ characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', '
 
 
 def generateRandomPassword():
-    passwordInput.delete(0,END)
+    passwordInput.delete(0, END)
     password = ""
     for i in range(1,15):
-        randomIndex = random.randint(0, 93)
+        randomIndex = random.randint(0, 92)
         password += characters[randomIndex]
     passwordInput.insert(0, password)
     pyperclip.copy(password)
