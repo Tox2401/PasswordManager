@@ -1,3 +1,4 @@
+import pathlib
 import random
 import pyperclip
 import tkinter.messagebox
@@ -30,7 +31,7 @@ def addToData():
                                                     f"Do you want to save?")
 
         if savePrompt:
-            with open("data.txt", "a") as data:
+            with open(pathlib.Path(__file__).parent/"data.txt", "a") as data:
                 data.write(f"{websiteInput.get()} | {usernameInput.get()} | {passwordInput.get()}" + "\n")
             tkinter.messagebox.showinfo(message="Password has been copied to the clipboard.")
 
@@ -49,7 +50,7 @@ window.title("Password Manager")
 window.config(padx=20, pady=20)
 
 canvas = Canvas(width=200, height=200)
-logoImg = PhotoImage(file="logo.png")
+logoImg = PhotoImage(file=pathlib.Path(__file__).parent/"logo.png")
 canvas.create_image(100, 100, image=logoImg)
 canvas.grid(column=1, row=0)
 
