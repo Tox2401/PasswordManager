@@ -1,8 +1,10 @@
+import json
+from json import JSONDecodeError
 import pathlib
 import random
 import pyperclip
-import tkinter.messagebox
 from tkinter import *
+import tkinter.messagebox
 
 characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
               'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -14,7 +16,7 @@ characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', '
 def generateRandomPassword():
     passwordInput.delete(0, END)
     password = ""
-    for i in range(1,15):
+    for i in range(1, 15):
         randomIndex = random.randint(0, 92)
         password += characters[randomIndex]
     passwordInput.insert(0, password)
@@ -22,17 +24,33 @@ def generateRandomPassword():
 
 
 def addToData():
-    if websiteInput.get() != "" and usernameInput.get() != "" and passwordInput.get() != "":
+    newData = {
+        websiteInput.get(): {
+            "Email/Username": usernameInput.get(),
+            "Password": passwordInput.get(),
+        },
+    }
+
+    if len(websiteInput.get()) != 0 and len(usernameInput.get()) != 0 and len(passwordInput.get()) != 0:
 
         savePrompt = tkinter.messagebox.askokcancel(title=websiteInput.get(),
                                                     message="Details entered:\n"
-                                                    f"Email/Username: {usernameInput.get()}\n"
-                                                    f"Password: {passwordInput.get()}\n"
-                                                    f"Do you want to save?")
+                                                            f"Email/Username: {usernameInput.get()}\n"
+                                                            f"Password: {passwordInput.get()}\n"
+                                                            f"Do you want to save?")
 
         if savePrompt:
-            with open(pathlib.Path(__file__).parent/"data.txt", "a") as data:
-                data.write(f"{websiteInput.get()} | {usernameInput.get()} | {passwordInput.get()}" + "\n")
+            try:
+                with open(pathlib.Path(__file__).parent / "data.json", "r") as jsonData:
+                    data = json.load(jsonData)
+                    data.update(newData)
+                with open(pathlib.Path(__file__).parent / "data.json", "w") as jsonData:
+                    json.dump(data, jsonData, indent=4)
+
+            except (FileNotFoundError, JSONDecodeError):
+                with open(pathlib.Path(__file__).parent / "data.json", "w") as jsonData:
+                    json.dump(newData, jsonData, indent=4)
+
             tkinter.messagebox.showinfo(message="Password has been copied to the clipboard.")
 
         websiteInput.delete(0, END)
@@ -45,12 +63,25 @@ def addToData():
                                      message="Missing data!\nMake sure to fill out all of the fields.")
 
 
+def searchData():
+    if len(websiteInput.get()) != 0:
+        try:
+            with open(pathlib.Path(__file__).parent / "data.json", "r") as jsonData:
+                data = json.load(jsonData)
+                tkinter.messagebox.showinfo(title=websiteInput.get(),
+                                            message=f"Email/Username: {data[websiteInput.get()]['Email/Username']}\n"
+                                                    f"Password: {data[websiteInput.get()]['Password']}")
+        except (KeyError, FileNotFoundError, JSONDecodeError):
+            tkinter.messagebox.showerror(title="Error",
+                                         message=f"No data found for {websiteInput.get()}")
+
+
 window = Tk()
 window.title("Password Manager")
 window.config(padx=20, pady=20)
 
 canvas = Canvas(width=200, height=200)
-logoImg = PhotoImage(file=pathlib.Path(__file__).parent/"logo.png")
+logoImg = PhotoImage(file=pathlib.Path(__file__).parent / "logo.png")
 canvas.create_image(100, 100, image=logoImg)
 canvas.grid(column=1, row=0)
 
@@ -58,7 +89,7 @@ websiteLabel = Label(text="Website:")
 websiteLabel.grid(column=0, row=1, columnspan=1, sticky="E", padx=2, pady=2)
 
 websiteInput = Entry()
-websiteInput.grid(column=1, row=1, columnspan=2, sticky="EW", padx=2, pady=2)
+websiteInput.grid(column=1, row=1, columnspan=1, sticky="EW", padx=2, pady=2)
 
 usernameLabel = Label(text="Email/Username:")
 usernameLabel.grid(column=0, row=2, columnspan=1, sticky="E", padx=2, pady=2)
@@ -71,6 +102,9 @@ passwordLabel.grid(column=0, row=3, columnspan=1, sticky="E", padx=2, pady=2)
 
 passwordInput = Entry()
 passwordInput.grid(column=1, row=3, columnspan=1, sticky="EW", padx=2, pady=2)
+
+searchBtn = Button(text="Search", command=searchData)
+searchBtn.grid(column=2, row=1, columnspan=1, sticky="EW", padx=2, pady=2)
 
 generatePasswordBtn = Button(text="Generate Password", command=generateRandomPassword)
 generatePasswordBtn.grid(column=2, row=3, columnspan=1, sticky="EW", padx=2, pady=2)
