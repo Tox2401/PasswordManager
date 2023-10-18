@@ -1,10 +1,9 @@
-import json
-from json import JSONDecodeError
 import pathlib
 import random
 import pyperclip
 from tkinter import *
 import tkinter.messagebox
+import sqlite3
 
 characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
               'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -21,37 +20,64 @@ def generateRandomPassword():
         password += characters[randomIndex]
     passwordInput.insert(0, password)
     pyperclip.copy(password)
+    tkinter.messagebox.showinfo(message="Password has been copied to the clipboard.")
+
+
+def updateDatabase(connection, cursor, data, createOrUpdate = "r"):
+    if createOrUpdate == "c":
+        cursor.execute("create table Database (website text, username text, password text)")
+        cursor.execute("replace into Database values (?,?,?)", data)
+        connection.commit()
+    else:
+        cursor.execute("replace into Database values (?,?,?)", data)
+        connection.commit()
 
 
 def addToData():
-    newData = {
-        websiteInput.get(): {
-            "Email/Username": usernameInput.get(),
-            "Password": passwordInput.get(),
-        },
-    }
 
     if len(websiteInput.get()) != 0 and len(usernameInput.get()) != 0 and len(passwordInput.get()) != 0:
 
-        savePrompt = tkinter.messagebox.askokcancel(title=websiteInput.get(),
+        savePrompt = tkinter.messagebox.askokcancel(title=websiteInput.get().capitalize(),
                                                     message="Details entered:\n"
                                                             f"Email/Username: {usernameInput.get()}\n"
                                                             f"Password: {passwordInput.get()}\n"
                                                             f"Do you want to save?")
 
         if savePrompt:
+            data = (websiteInput.get().capitalize(), usernameInput.get(), passwordInput.get())
+            dataExists = False
+
             try:
-                with open(pathlib.Path(__file__).parent / "data.json", "r") as jsonData:
-                    data = json.load(jsonData)
-                    data.update(newData)
-                with open(pathlib.Path(__file__).parent / "data.json", "w") as jsonData:
-                    json.dump(data, jsonData, indent=4)
+                # Check if data for the website already exists in the database
+                for row in cursor.execute("select * from Database"):
+                    if row[0].capitalize() == websiteInput.get().capitalize():
+                        dataExists = True
+                        break
+                    else:
+                        pass
 
-            except (FileNotFoundError, JSONDecodeError):
-                with open(pathlib.Path(__file__).parent / "data.json", "w") as jsonData:
-                    json.dump(newData, jsonData, indent=4)
+                if dataExists:
+                    replacePrompt = tkinter.messagebox.askokcancel(title="Data exists!",
+                                                                    message=f"Data for {websiteInput.get().capitalize()} "
+                                                                            f"already exists!\nDo you want to replace it?")
+                    # Replaces existing data
+                    if replacePrompt:
+                        cursor.execute(f"delete from Database where website = '{websiteInput.get().capitalize()}'")
+                        updateDatabase(connection, cursor, data)
+                        connection.commit()
+                    else:
+                        pass
+                else:
+                    updateDatabase(connection, cursor, data)
 
-            tkinter.messagebox.showinfo(message="Password has been copied to the clipboard.")
+
+            except sqlite3.OperationalError:
+                print("Database not found, creating database.")
+                updateDatabase(connection, cursor, data, "c")
+
+        else:
+            pass
+
 
         websiteInput.delete(0, END)
         usernameInput.delete(0, END)
@@ -64,17 +90,23 @@ def addToData():
 
 
 def searchData():
-    if len(websiteInput.get()) != 0:
-        try:
-            with open(pathlib.Path(__file__).parent / "data.json", "r") as jsonData:
-                data = json.load(jsonData)
-                tkinter.messagebox.showinfo(title=websiteInput.get(),
-                                            message=f"Email/Username: {data[websiteInput.get()]['Email/Username']}\n"
-                                                    f"Password: {data[websiteInput.get()]['Password']}")
-        except (KeyError, FileNotFoundError, JSONDecodeError):
-            tkinter.messagebox.showerror(title="Error",
-                                         message=f"No data found for {websiteInput.get()}")
+    try:
+        if len(websiteInput.get().capitalize()) != 0:
+            for row in cursor.execute("select * from Database"):
+                if row[0] == websiteInput.get().capitalize():
+                    tkinter.messagebox.showinfo(title=websiteInput.get().capitalize(),
+                                                message=f"Username: {row[1]}\nPassword: {row[2]}")
+                    break
+        else:
+            tkinter.messagebox.showerror(title="Error!",
+                                         message=f"Website entry is empty.")
+    except sqlite3.OperationalError:
+        tkinter.messagebox.showerror(title="Error!",
+                                     message=f"No database found.")
 
+
+connection = sqlite3.connect("Database.db")
+cursor = connection.cursor()
 
 window = Tk()
 window.title("Password Manager")
